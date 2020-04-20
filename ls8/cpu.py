@@ -7,7 +7,11 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256    # Holds 256 bytes of memory 
+        self.reg = [0] * 8 # Holds 8 general-purpose registers
+        self.pc = 0 # Adds properties for any internal registers needed
+        
+        
 
     def load(self):
         """Load a program into memory."""
@@ -29,7 +33,6 @@ class CPU:
         for instruction in program:
             self.ram[address] = instruction
             address += 1
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -62,4 +65,34 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        # Instruction Register (IR), contains a copy of the currently executing instruction
+        
+        running = True
+        
+        while running:
+            # Instruction Register (IR), contains a copy of the currently executing instruction
+            ir = self.ram_read(self.pc)
+            operand_a = self.ram_read(self.pc+1)
+            operand_b = self.ram_read(self.pc+2)
+            
+            if ir == 130:
+                self.reg[operand_a] = operand_b
+                self.pc += 3
+            elif ir == 71:
+                print(self.reg[operand_a])
+                self.pc += 2
+            elif ir == 1:
+                # HALT
+                running = False
+            else:
+                print("Unknown instructions")
+                break
+            
+    
+    def ram_read(self, mar):
+        # Memory Address Register (MAR): holds the memory address we're reading or writing
+        return self.ram[mar]
+    
+    def ram_write(self, mar, mdr):
+        # Memory Data Register (mdr), holds the value to write or the value just read
+        self.ram[mar] = mdr
