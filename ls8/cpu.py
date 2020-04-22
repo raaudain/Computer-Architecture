@@ -8,38 +8,45 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0] * 256    # Holds 256 bytes of memory 
-        self.reg = [0] * 8 # Holds 8 general-purpose registers
-        self.pc = 0 # Adds properties for any internal registers needed
-        
-        
+        self.reg = [0] * 8  # Holds 8 general-purpose registers
+        self.pc = 0 # Program Counter, address of the currently executing instruction
+        self.LDI = 0b10000010
+        self.PRN = 0b01000111
+        self.HLT = 0b00000001
+        self.MUL = 0b10100010
+        self.running = True
+        self.branchtable = {
+            self.LDI: self.handle_load_immediate,
+            self.PRN: self.handle_print,
+            self.HLT: self.handle_halt,
+            self.MUL: self.handle_multiply
+        }
 
-    def load(self):
+        
+    def load(self, file):
         """Load a program into memory."""
 
         address = 0
-
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
-            self.ram[address] = instruction
+        
+        program = open(file, "r")
+        
+        for line in program:
+            line = line.split("#")
+            line = line[0].strip()
+            if line == "":
+                continue
+            self.ram[address] = int(line, 2)
             address += 1
+            
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-
+        print(reg_a, reg_b, self.reg[reg_a])
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -62,33 +69,7 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
-
-    def run(self):
-        """Run the CPU."""
-        # Instruction Register (IR), contains a copy of the currently executing instruction
         
-        running = True
-        
-        while running:
-            # Instruction Register (IR), contains a copy of the currently executing instruction
-            ir = self.ram_read(self.pc)
-            operand_a = self.ram_read(self.pc+1)
-            operand_b = self.ram_read(self.pc+2)
-            
-            if ir == 130:
-                self.reg[operand_a] = operand_b
-                self.pc += 3
-            elif ir == 71:
-                print(self.reg[operand_a])
-                self.pc += 2
-            elif ir == 1:
-                # HALT
-                running = False
-            else:
-                print("Unknown instructions")
-                break
-            
-    
     def ram_read(self, mar):
         # Memory Address Register (MAR): holds the memory address we're reading or writing
         return self.ram[mar]
@@ -96,3 +77,35 @@ class CPU:
     def ram_write(self, mar, mdr):
         # Memory Data Register (mdr), holds the value to write or the value just read
         self.ram[mar] = mdr
+
+    def handle_load_immediate(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+        self.reg[operand_a] = operand_b
+        self.pc += 3
+        
+    def handle_print(self):
+        operand_a = self.ram_read(self.pc+1)
+        print(self.reg[operand_a])
+        self.pc += 2
+    
+    def handle_halt(self):
+        self.running = False
+        
+    def handle_multiply(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+        print(self.reg[operand_a] * self.reg[operand_b])
+        self.pc +=2
+    
+    def run(self):
+        """Run the CPU."""
+
+        while self.running:
+            ir = self.ram_read(self.pc)
+            
+            if self.branchtable.get(ir):
+                self.branchtable[ir]()
+            else:
+                print("Unknown instructions")
+                sys.exit()
