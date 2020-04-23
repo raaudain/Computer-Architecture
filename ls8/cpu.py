@@ -113,12 +113,10 @@ class CPU:
     def handle_push(self):
         # Decrement stack pointer
         self.reg[self.sp] -= 1
-        #print("sp_push", self.reg[self.sp])
         
-        # Copys value from register into memory
+        # Copies value from register into memory
         reg_num = self.ram[self.pc+1]
         value = self.reg[reg_num] # Being pushed
-        #print("value_push", value)
         
         address = self.reg[self.sp]
         
@@ -128,17 +126,15 @@ class CPU:
         self.pc += 2
         
     def handle_pop(self):
-        # Copies value from the address the Stack Pointer is pointing
-        # to the the register
-        value = self.ram_read(self.reg[self.sp])
-        #print("value_pop", value)
+        address = self.reg[self.sp]
+        value = self.ram[address]
         
-        # Sets value into memory
-        self.reg[self.ram_read(self.pc+1)] = value
+        # Copies value from memory into register
+        reg_num = self.ram[self.pc+1]
+        self.reg[reg_num] = value # Being popped
         
         # Increment stack pointer
         self.reg[self.sp] += 1
-        #print("sp_pop", self.reg[self.sp])
         
         self.pc += 2
         
