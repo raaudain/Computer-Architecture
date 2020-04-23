@@ -10,17 +10,23 @@ class CPU:
         self.ram = [0] * 256    # Holds 256 bytes of memory 
         self.reg = [0] * 8  # Holds 8 general-purpose registers
         self.pc = 0 # Program Counter, address of the currently executing instruction
-        self.LDI = 0b10000010
-        self.PRN = 0b01000111
-        self.HLT = 0b00000001
-        self.MUL = 0b10100010
+        self.ldi = 0b10000010
+        self.prn = 0b01000111
+        self.hlt = 0b00000001
+        self.mul = 0b10100010
+        self.push = 0b01000101
+        self.pop = 0b01000110
         self.running = True
         self.branchtable = {
-            self.LDI: self.handle_load_immediate,
-            self.PRN: self.handle_print,
-            self.HLT: self.handle_halt,
-            self.MUL: self.handle_multiply
+            self.ldi: self.handle_load_immediate,
+            self.prn: self.handle_print,
+            self.hlt: self.handle_halt,
+            self.mul: self.handle_multiply,
+            self.push: self.handle_push,
+            self.pop: self.handle_pop
         }
+        self.sp = 7 # Stack Pointer
+        self.reg[self.sp] = 0xF4
 
         
     def load(self, file):
@@ -38,15 +44,16 @@ class CPU:
             self.ram[address] = int(line, 2)
             address += 1
             
-
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-        print(reg_a, reg_b, self.reg[reg_a])
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == "DIV":
+            self.reg[reg_a] /= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -79,33 +86,71 @@ class CPU:
         self.ram[mar] = mdr
 
     def handle_load_immediate(self):
+        # Handles intructions
         operand_a = self.ram_read(self.pc+1)
         operand_b = self.ram_read(self.pc+2)
         self.reg[operand_a] = operand_b
         self.pc += 3
         
     def handle_print(self):
+        # Handles print
         operand_a = self.ram_read(self.pc+1)
         print(self.reg[operand_a])
         self.pc += 2
     
     def handle_halt(self):
+        # Stops program
         self.running = False
         
     def handle_multiply(self):
+        # Multiplies
         operand_a = self.ram_read(self.pc+1)
         operand_b = self.ram_read(self.pc+2)
+        #self.alu("MUL", operand_a, operand_b)
         print(self.reg[operand_a] * self.reg[operand_b])
-        self.pc +=2
-    
+        self.pc += 2
+        
+    def handle_push(self):
+        # Decrement stack pointer
+        self.reg[self.sp] -= 1
+        #print("sp_push", self.reg[self.sp])
+        
+        # Copys value from register into memory
+        reg_num = self.ram[self.pc+1]
+        value = self.reg[reg_num] # Being pushed
+        #print("value_push", value)
+        
+        address = self.reg[self.sp]
+        
+        # Stores the value on the stack
+        self.ram[address] = value
+        
+        self.pc += 2
+        
+    def handle_pop(self):
+        # Copies value from the address the Stack Pointer is pointing
+        # to the the register
+        value = self.ram_read(self.reg[self.sp])
+        #print("value_pop", value)
+        
+        # Sets value into memory
+        self.reg[self.ram_read(self.pc+1)] = value
+        
+        # Increment stack pointer
+        self.reg[self.sp] += 1
+        #print("sp_pop", self.reg[self.sp])
+        
+        self.pc += 2
+        
     def run(self):
         """Run the CPU."""
 
         while self.running:
+            # Internal Registers
             ir = self.ram_read(self.pc)
             
             if self.branchtable.get(ir):
                 self.branchtable[ir]()
             else:
                 print("Unknown instructions")
-                sys.exit()
+                sys.exit(1)
